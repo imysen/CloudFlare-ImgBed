@@ -1,13 +1,14 @@
-import { readIndex, getIndexInfo, rebuildIndex, mergeOperationsToIndex, getIndexStorageStats } from '../../utils/indexManager.js';
+import { readIndex, getIndexInfo, rebuildIndex, getIndexStorageStats } from '../../utils/indexManager.js';
 
 export async function onRequest(context) {
-    const { request, env, waitUntil } = context;
+    const { request, waitUntil } = context;
     const url = new URL(request.url);
 
     // 解析查询参数
     let start = parseInt(url.searchParams.get('start'), 10) || 0;
     let count = parseInt(url.searchParams.get('count'), 10) || 50;
     let sum = url.searchParams.get('sum') === 'true';
+    let recursive = url.searchParams.get('recursive') === 'true';
     let dir = url.searchParams.get('dir') || '';
     let search = url.searchParams.get('search') || '';
     let channel = url.searchParams.get('channel') || '';
@@ -24,9 +25,6 @@ export async function onRequest(context) {
         dir = dir.substring(1);
     }
 
-    // 处理挂起索引
-    await mergeOperationsToIndex(context);
-
     try {
         // 特殊操作：重建索引
         if (action === 'rebuild') {
@@ -39,8 +37,8 @@ export async function onRequest(context) {
             });
         }
 
-        // 特殊操作：获取索引存储统计
-        if (action === 'storage-stats') {
+        // 特殊操作：获取索引存储信息
+        if (action === 'index-storage-stats') {
             const stats = await getIndexStorageStats(context);
             return new Response(JSON.stringify(stats), {
                 headers: { "Content-Type": "application/json" }
@@ -80,7 +78,8 @@ export async function onRequest(context) {
             start,
             count,
             channel,
-            listType
+            listType,
+            includeSubdirFiles: recursive,
         });
 
         // 转换文件格式
